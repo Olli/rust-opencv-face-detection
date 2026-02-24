@@ -1,0 +1,7 @@
+[package]
+name = "face_recognition2"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+opencv = "0.98.1"
