@@ -22,7 +22,6 @@ opencv::not_opencv_branch_5! {
 
 // fn visualize(frame: &mut Mat, faces: &mut Vector<Rect_<i32>>, fps: i32)  -> Result<(), Box<dyn std::error::Error>>{
 fn visualize(frame: &mut Mat, faces: &mut Mat, fps: i32) -> Result<(), Box<dyn std::error::Error>> {
-   
     let box_color = (0, 255, 0).into();
     let landmark_color: Vec<VecN<f64, 4>> = vec![
         (255, 0, 0).into(),   // right eye
@@ -61,14 +60,13 @@ fn visualize(frame: &mut Mat, faces: &mut Mat, fps: i32) -> Result<(), Box<dyn s
             0.5,
             text_color,
             1,
-            LINE_AA, 
-            false 
+            LINE_AA,
+            false,
         )?;
 
         // imgproc::rectangle(frame, Rect::new(x1, y1, w, h), box_color, -1, 0, 0)?;
         // green rectangle around a detected face
         imgproc::rectangle(frame, Rect::new(x1, y1, w, h), box_color, 1, 0, 0)?;
-
 
         // let ksize = Size::new(3, 3); // instead of 3
         // let tf = frame.clone();
@@ -80,8 +78,15 @@ fn visualize(frame: &mut Mat, faces: &mut Mat, fps: i32) -> Result<(), Box<dyn s
             let lcx: i32 = *faces.at_2d::<f32>(i, 2 * ilc + 4)? as i32;
             let lcy: i32 = *faces.at_2d::<f32>(i, 2 * ilc + 5)? as i32;
             // draws filled points
-            imgproc::circle(frame, Point::new(lcx, lcy), 2, landmark_color[idx],-1,LINE_AA,0 )?;
-
+            imgproc::circle(
+                frame,
+                Point::new(lcx, lcy),
+                2,
+                landmark_color[idx],
+                -1,
+                LINE_AA,
+                0,
+            )?;
         }
     }
     Ok(())
@@ -92,11 +97,10 @@ fn main() -> Result<()> {
     highgui::named_window_def(WINDOW)?;
 
     // initialize with a default value
-    let mut model_input_size = Size::new(120,120);
+    let mut model_input_size = Size::new(120, 120);
 
     // use the cam 0
     let mut cam = videoio::VideoCapture::new(0, videoio::CAP_ANY)?; // 0 is the default camera
-
 
     if !cam.is_opened()? {
         panic!("Unable to open default camera!");
@@ -106,7 +110,6 @@ fn main() -> Result<()> {
         // set the model input size to the size of the image of the cam
         model_input_size = Size::new(fw, fh)
     }
-
 
     // c++ default values
     let model = "models/face_detection_yunet_2023mar.onnx";
@@ -136,9 +139,6 @@ fn main() -> Result<()> {
     let mut faces = Mat::default();
 
     loop {
-        
-
-
         let mut frame = Mat::default();
         // read a frame from the cam
         cam.read(&mut frame)?;
@@ -149,45 +149,39 @@ fn main() -> Result<()> {
             continue;
         }
 
-        // let mut reduced = Mat::default();
-        // imgproc::resize(
-        //     &frame,
-        //     &mut reduced,
-        //     model_input_size,
-        //     0.05,
-        //     0.05,
-        //     imgproc::INTER_LINEAR,
-        // )?;
-        //
-
-
-        tick_meter.start()?;
-
         // only detect the face on every 4th iframe
         if count % 4 == 0 {
+            tick_meter.start()?;
+
             let fd_ret = face_detector_model.detect(&frame, &mut faces);
             // let fd_ret = face_detector_model.detect(&reduced, &mut faces);
             match fd_ret {
-                Ok(contents) => println!("{}", contents),
+                Ok(contents) => {}
                 Err(err) => println!("{}", err),
             }
+            tick_meter.stop()?;
         }
 
-        // let _ = visualize(&mut frame, &mut faces, tick_meter.get_fps()? as i32);
-        let _ = visualize(&mut frame, &mut faces, tick_meter.get_fps()? as i32);
+        let fps = tick_meter.get_fps()? as i32;
+
+        // bring everything together
+        let _ = visualize(&mut frame, &mut faces, fps);
 
         count += 1;
 
-        tick_meter.stop()?;
-
         // paint frame
         highgui::imshow(WINDOW, &frame)?;
+
+        // only restrict the measurement if it's zero (because its a skipped frame -
+        // see if count % 4 == 0)
+        if fps == 0 {
+            tick_meter.reset()?;
+        }
 
         // exit key
         if highgui::wait_key(10)? > 0 {
             break;
         }
-        tick_meter.reset()?;
     }
     Ok(())
 }
